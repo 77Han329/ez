@@ -59,6 +59,7 @@ class BaseConfig(object):
                  random_start: bool = True,
                  cvt_string: bool = False,
                  image_based: bool = False,
+                 pretrained: bool = False,
                  frame_skip: int = 1,
                  stacked_observations: int = 16,
                  lstm_hidden_size: int = 64,
@@ -229,6 +230,7 @@ class BaseConfig(object):
         self.pb_c_init = 1.25
 
         # Training
+        self.pretrained = pretrained
         self.training_steps = training_steps
         self.last_steps = last_steps
         self.checkpoint_interval = checkpoint_interval
