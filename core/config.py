@@ -50,7 +50,7 @@ class BaseConfig(object):
                  do_consistency: bool = True,
                  use_value_prefix: bool = True,
                  off_correction: bool = True,
-                 gray_scale: bool = False,
+                 gray_scale: bool = True,
                  episode_life: bool = False,
                  change_temperature: bool = True,
                  init_zero: bool = False,

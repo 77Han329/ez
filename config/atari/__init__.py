@@ -74,7 +74,7 @@ class AtariConfig(BaseConfig):
         self.blocks = 1  # Number of blocks in the ResNet
         self.channels = 64  # Number of channels in the ResNet
         if self.gray_scale:
-            self.channels = 32
+            self.channels = 64
         self.reduced_channels_reward = 16  # x36 Number of channels in reward head
         self.reduced_channels_value = 16  # x36 Number of channels in value head
         self.reduced_channels_policy = 16  # x36 Number of channels in policy head
@@ -105,9 +105,8 @@ class AtariConfig(BaseConfig):
         game = self.new_game()
         self.action_space_size = game.action_space_size
 
-    def get_uniform_network(self,pretrain):
-        
-        efficientzero_net= EfficientZeroNet(
+    def get_uniform_network(self, pretrain):
+        efficientzero_net = EfficientZeroNet(
             self.obs_shape,
             self.action_space_size,
             self.blocks,
@@ -130,13 +129,18 @@ class AtariConfig(BaseConfig):
             pred_hid=self.pred_hid,
             pred_out=self.pred_out,
             init_zero=self.init_zero,
-            state_norm=self.state_norm)
-        
-        if pretrain :
-            print("using pretrained model ")
-        else :
-            print("not using pretrained model")
-            
+            state_norm=self.state_norm
+        )
+
+        if pretrain:
+            print("Using pretrained model.")
+            pretrained_representation_state_dict = torch.load("/home/stud/xhan/BA/ficc/save/ficc_breakout/representation.pkl")
+            efficientzero_net.representation_network.load_state_dict(pretrained_representation_state_dict, strict=False)
+            print("Pretrained model loaded successfully!")
+
+        else:
+            print("Not using pretrained model.")
+
         return efficientzero_net
 
     def new_game(self, seed=None, save_video=False, save_path=None, video_callable=None, uid=None, test=False, final_test=False):
