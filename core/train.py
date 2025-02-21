@@ -57,7 +57,7 @@ def update_weights(model, batch, optimizer, replay_buffer, config, scaler, vis_r
         True -> log some visualization data in tensorboard (some distributions, values, etc)
     """
     inputs_batch, targets_batch = batch
-    obs_batch_ori, action_batch, mask_batch, indices, weights_lst, make_time = inputs_batch
+    obs_batch_ori, action_batch, mask_batch, indices, weights_lst, make_time = inputs_batch#从batch 中提取action
     target_value_prefix, target_value, target_policy = targets_batch
 
     # [:, 0: config.stacked_observations * 3,:,:]
@@ -75,7 +75,7 @@ def update_weights(model, batch, optimizer, replay_buffer, config, scaler, vis_r
         obs_target_batch = config.transform(obs_target_batch)
 
     # use GPU tensor
-    action_batch = torch.from_numpy(action_batch).to(config.device).unsqueeze(-1).long()
+    action_batch = torch.from_numpy(action_batch).to(config.device).unsqueeze(-1).long()#给action 加维度
     mask_batch = torch.from_numpy(mask_batch).to(config.device).float()
     target_value_prefix = torch.from_numpy(target_value_prefix).to(config.device).float()
     target_value = torch.from_numpy(target_value).to(config.device).float()
@@ -143,7 +143,7 @@ def update_weights(model, batch, optimizer, replay_buffer, config, scaler, vis_r
         with autocast():
             for step_i in range(config.num_unroll_steps):
                 # unroll with the dynamics function
-                value, value_prefix, policy_logits, hidden_state, reward_hidden = model.recurrent_inference(hidden_state, reward_hidden, action_batch[:, step_i])
+                value, value_prefix, policy_logits, hidden_state, reward_hidden = model.recurrent_inference(hidden_state, reward_hidden, action_batch[:, step_i])#把对应step的action 给进去 
 
                 beg_index = config.image_channel * step_i
                 end_index = config.image_channel * (step_i + config.stacked_observations)

@@ -296,7 +296,10 @@ class DataWorker(object):
                             distributions = np.ones(self.config.action_space_size)
 
                         action, visit_entropy = select_action(distributions, temperature=temperature, deterministic=deterministic)
+                        #action_embedding = self.storage.get_action_embedding.remote(action)
+                        #obs, ori_reward, done, info = env.step(action_embedding)
                         obs, ori_reward, done, info = env.step(action)
+                        
                         # clip the reward
                         if self.config.clip_reward:
                             clip_reward = np.sign(ori_reward)

@@ -5,7 +5,7 @@ from core.utils import make_atari, WarpFrame, EpisodicLifeEnv
 from core.dataset import Transforms
 from .env_wrapper import AtariWrapper
 from .model import EfficientZeroNet
-
+from .model import ActionAdapter
 
 class AtariConfig(BaseConfig):
     def __init__(self):
@@ -134,10 +134,18 @@ class AtariConfig(BaseConfig):
 
         if pretrain:
             print("Using pretrained model.")
+            #repre
             pretrained_representation_state_dict = torch.load("/home/stud/xhan/BA/ficc/save/ficc_breakout/representation.pkl")
             efficientzero_net.representation_network.load_state_dict(pretrained_representation_state_dict, strict=False)
-            print("Pretrained model loaded successfully!")
+            
+            #  LAG
+            pretrained_lag_state_dict = torch.load("/home/stud/xhan/BA/ficc/save/ficc_breakout/lag.pkl")
+            efficientzero_net.lag.load_state_dict(pretrained_lag_state_dict, strict=False)
 
+            # action adapter
+            efficientzero_net.action_adapter = ActionAdapter(efficientzero_net.lag)
+            print("Pretrained model loaded successfully!")
+            
         else:
             print("Not using pretrained model.")
 

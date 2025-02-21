@@ -3,7 +3,7 @@ import torch
 
 import numpy as np
 import torch.nn as nn
-
+import collections
 from core.model import BaseNet, renormalize
 
 
@@ -361,7 +361,113 @@ class PredictionNetwork(nn.Module):
         value = self.fc_value(value)
         policy = self.fc_policy(policy)
         return policy, value
+class VectorQuantizer1D(nn.Module):
+	def __init__(self, num_embeddings, input_sizes, embedding_dim, commitment_cost):
+		super(VectorQuantizer1D, self).__init__()
 
+		self._input_sizes = input_sizes
+		self._embedding_dim = embedding_dim
+		self._num_embeddings = num_embeddings
+
+		self.embedding = nn.Embedding(self._num_embeddings, self._embedding_dim)#20，5
+		self.embedding.weight.data.uniform_(-1 / self._num_embeddings, 1 / self._num_embeddings)#初始化weight
+		self._commitment_cost = commitment_cost
+
+	def get_embedding(self, index):
+		return self.embedding.weight[index]
+
+	def get_embeddings(self):
+		return self.embedding.weight
+
+	def forward(self, flat_input):
+		device = flat_input.device#here the flatiinput contains compressed infomation about 2 states 
+		#flat_input.shape is B,5 represent ze
+		distances = (torch.sum(flat_input ** 2, dim=1, keepdim=True)#在codebook里找到和ze 最近的ei
+		             + torch.sum(self.embedding.weight ** 2, dim=1)
+		             - 2 * torch.matmul(flat_input, self.embedding.weight.t()))
+
+		encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
+		encodings = torch.zeros(encoding_indices.shape[0], self._num_embeddings).to(device)
+		encodings.scatter_(1, encoding_indices, 1)
+
+		quantized = torch.matmul(encodings, self.embedding.weight)
+
+		e_latent_loss = ((quantized.detach() - flat_input) ** 2).mean(dim=1)
+		q_latent_loss = ((quantized - flat_input.detach()) ** 2).mean(dim=1)
+		loss = q_latent_loss + self._commitment_cost * e_latent_loss
+
+		quantized = flat_input + (quantized - flat_input).detach()
+
+		avg_probs = torch.mean(encodings, dim=0)
+		perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
+		return quantized, loss, perplexity, encoding_indices[:, 0]
+
+class LatentActionGen(nn.Module):
+	def __init__(self, num_embeddings, in_channel, vq_in_channel, embedding_channel, num_blocks):
+		super(LatentActionGen, self).__init__()
+		self._input_size = vq_in_channel * 36
+		self.quantizer = VectorQuantizer1D(num_embeddings, vq_in_channel * 36, embedding_channel, 1.0)
+
+		self.conv = conv3x3(in_channel, in_channel)
+		self.conv_s = conv3x3(in_channel, in_channel)
+		self.conv_a = conv3x3(1, in_channel)
+		# self.conv = conv3x3(in_channel * 2, embedding_channel) # sample
+		self.bn = nn.BatchNorm2d(in_channel)
+		self.act = nn.ReLU()
+		self.resblocks = nn.ModuleList(
+			[ResidualBlock(in_channel, in_channel) for _ in range(num_blocks)]
+		)
+		self.conv_out = conv3x3(in_channel, vq_in_channel)
+		self.fc = nn.Linear(self._input_size, embedding_channel)
+		self.bn_o = nn.BatchNorm1d(embedding_channel, affine=False)
+
+	def forward(self, s0, s1):
+		# give 2 state and compress them to 5 dim vektor byusing cnn and fc as last layer,  5 dime because embedding chnnel number is 5
+		x = self.conv(s0) + self.conv_s(s1)#B,64,6,6
+		# x = self.bn(x) TODO: delete this
+		# x += s0
+		x = self.act(x)
+		for block in self.resblocks:
+			x = block(x)
+		x = self.conv_out(x)#B5,6,6
+
+		flat_x = x.view(-1, self._input_size)#B,5,6,6-->B,180
+		flat_x = self.fc(flat_x)
+		flat_x = self.bn_o(flat_x)#4,5
+		z, loss, perplexity, encoding_indices = self.quantizer(flat_x)
+		z = z.unsqueeze(-1).unsqueeze(-1).repeat(1, 1, *s0.shape[-2:])
+		# print('perp: %.4f; LAG loss: %.4f;' % (perplexity, loss))
+		return z, loss, perplexity, encoding_indices
+
+class ActionAdapter:
+    def __init__(self, lag):
+        """
+        Action Adapter M: Maps real actions a_t to latent action embeddings e_k
+        :param lag_model: The pre-trained Latent Action Generator (LAG)
+        """
+        self.lag_model = lag # 预训练的 LAG
+        self.mapping = {}  # 存储 (a_t -> e_k) 的映射
+        self.count_table = collections.defaultdict(lambda: collections.defaultdict(int))  # 统计表 C[a, k]
+
+    def build_adapter(self, dataset):
+        """
+        Train the action adapter M using self-play dataset
+        :param dataset: list of (s_t, a_t, s_t+1) tuples
+        """
+        for (s_t, a_t, s_t1) in dataset:
+            e_k = self.lag_model(s_t, s_t1)[0]  # 使用 LAG 生成 latent action
+            self.count_table[a_t][e_k] += 1
+
+        # 选择最常见的 e_k 作为 a_t 的映射
+        for a_t in self.count_table.keys():
+            sorted_ek = sorted(self.count_table[a_t].items(), key=lambda x: -x[1])
+            self.mapping[a_t] = sorted_ek[0][0]  # 取频率最高的 e_k
+
+    def get_latent_action(self, a_t):
+        """
+        Get the corresponding latent action embedding e_k
+        """
+        return self.mapping.get(a_t, None)
 
 class EfficientZeroNet(BaseNet):
     def __init__(
@@ -533,6 +639,15 @@ class EfficientZeroNet(BaseNet):
             nn.ReLU(),
             nn.Linear(self.pred_hid, self.pred_out),
         )
+        
+        #lag
+        self.lag = LatentActionGen(num_embeddings=20,
+		                           in_channel=num_channels,#64
+		                           vq_in_channel=5,
+		                           embedding_channel=5,
+                                   num_blocks=num_blocks)
+        
+        self.action_adapter = ActionAdapter(self.lag)
 
     def prediction(self, encoded_state):
         policy, value = self.prediction_network(encoded_state)
@@ -548,7 +663,7 @@ class EfficientZeroNet(BaseNet):
 
     def dynamics(self, encoded_state, reward_hidden, action):
         # Stack encoded_state with a game specific one hot encoded action
-        action_one_hot = (
+        action_one_hot = (#64,1,6,6
             torch.ones(
                 (
                     encoded_state.shape[0],
