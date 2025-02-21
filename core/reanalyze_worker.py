@@ -9,7 +9,7 @@ from torch.cuda.amp import autocast as autocast
 from core.mcts import MCTS
 from core.model import concat_output, concat_output_value
 from core.utils import prepare_observation_lst, LinearSchedule
-
+from config.atari import game_config
 
 @ray.remote
 class BatchWorker_CPU(object):
@@ -285,7 +285,7 @@ class BatchWorker_GPU(object):
         self.config = config
         self.worker_id = worker_id
 
-        self.model = config.get_uniform_network()
+        self.model = config.get_uniform_network(game_config.pretrain)
         self.model.to(config.device)
         self.model.eval()
 

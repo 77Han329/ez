@@ -36,6 +36,7 @@ class AtariConfig(BaseConfig):
             # storage efficient
             cvt_string=True,
             image_based=True,
+            pretrain=True,
             # lr scheduler
             lr_warm_up=0.01,
             lr_init=0.2,
@@ -104,8 +105,9 @@ class AtariConfig(BaseConfig):
         game = self.new_game()
         self.action_space_size = game.action_space_size
 
-    def get_uniform_network(self):
-        return EfficientZeroNet(
+    def get_uniform_network(self,pretrain):
+        
+        efficientzero_net= EfficientZeroNet(
             self.obs_shape,
             self.action_space_size,
             self.blocks,
@@ -129,6 +131,13 @@ class AtariConfig(BaseConfig):
             pred_out=self.pred_out,
             init_zero=self.init_zero,
             state_norm=self.state_norm)
+        
+        if pretrain :
+            print("using pretrained model ")
+        else :
+            print("not using pretrained model")
+            
+        return efficientzero_net
 
     def new_game(self, seed=None, save_video=False, save_path=None, video_callable=None, uid=None, test=False, final_test=False):
         if test:

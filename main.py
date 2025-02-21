@@ -52,7 +52,7 @@ if __name__ == '__main__':
     parser.add_argument('--info', type=str, default='none', help='debug string')
     parser.add_argument('--load_model', action='store_true', default=False, help='choose to load model')
     parser.add_argument('--model_path', type=str, default='./results/test_model.p', help='load model path')
-    parser.add_argument('--object_store_memory', type=int, default=150 * 1024 * 1024 * 1024, help='object store memory')
+    parser.add_argument('--object_store_memory', type=int, default=20 * 1024 * 1024 * 1024, help='object store memory')
 
     # Process arguments
     args = parser.parse_args()
@@ -83,6 +83,9 @@ if __name__ == '__main__':
     init_logger(log_base_path)
     logging.getLogger('train').info('Path: {}'.format(exp_path))
     logging.getLogger('train').info('Param: {}'.format(game_config.get_hparams()))
+    
+    #set train mode
+    pretrain=game_config.pretrain
 
     device = game_config.device
     try:
@@ -92,7 +95,7 @@ if __name__ == '__main__':
                 model_path = args.model_path
             else:
                 model_path = None
-            model, weights = train(game_config, summary_writer, model_path)
+            model, weights = train(game_config, summary_writer, model_path,pretrain)
             model.set_weights(weights)
             total_steps = game_config.training_steps + game_config.last_steps
             test_score, _, test_path = test(game_config, model.to(device), total_steps, game_config.test_episodes, device, render=False, save_video=args.save_video, final_test=True, use_pb=True)
@@ -119,7 +122,7 @@ if __name__ == '__main__':
                 model_path = args.model_path
             assert os.path.exists(model_path), 'model not found at {}'.format(model_path)
 
-            model = game_config.get_uniform_network().to(device)
+            model = game_config.get_uniform_network(train_mode).to(device)
             model.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
             test_score, _, test_path = test(game_config, model, 0, args.test_episodes, device=device, render=args.render, save_video=args.save_video, final_test=True, use_pb=True)
             mean_score = test_score.mean()

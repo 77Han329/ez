@@ -10,7 +10,7 @@ from torch.cuda.amp import autocast as autocast
 from core.mcts import MCTS
 from core.game import GameHistory
 from core.utils import select_action, prepare_observation_lst
-
+from config.atari import game_config
 
 @ray.remote(num_gpus=0.125)
 class DataWorker(object):
@@ -104,7 +104,7 @@ class DataWorker(object):
     def run(self):
         # number of parallel mcts
         env_nums = self.config.p_mcts_num
-        model = self.config.get_uniform_network()
+        model = self.config.get_uniform_network(game_config.pretrain)
         model.to(self.device)
         model.eval()
 

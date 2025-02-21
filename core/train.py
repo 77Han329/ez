@@ -357,10 +357,17 @@ def _train(model, target_model, replay_buffer, shared_storage, batch_storage, co
     if config.use_augmentation:
         config.set_transforms()
 
-    # wait until collecting enough data to start
-    while not (ray.get(replay_buffer.get_total_len.remote()) >= config.start_transitions):
+     # wait until collecting enough data to start
+    print('waiting for actor to collect data')
+    print("DEBUG: config.start_transitions =", config.start_transitions)
+
+    while True:
+        current_len = ray.get(replay_buffer.get_total_len.remote())
+        print("Current buffer size:", current_len)
+        if current_len >= config.start_transitions:
+            break
         time.sleep(1)
-        pass
+
     print('Begin training...')
     # set signals for other workers
     shared_storage.set_start_signal.remote()
@@ -423,7 +430,7 @@ def _train(model, target_model, replay_buffer, shared_storage, batch_storage, co
     return model.get_weights()
 
 
-def train(config, summary_writer, model_path=None):
+def train(config, summary_writer, model_path=None,pretrain=False):
     """training process
     Parameters
     ----------
@@ -433,8 +440,8 @@ def train(config, summary_writer, model_path=None):
         model path for resuming
         default: train from scratch
     """
-    model = config.get_uniform_network()
-    target_model = config.get_uniform_network()
+    model = config.get_uniform_network(pretrain)
+    target_model = config.get_uniform_network(pretrain)
     if model_path:
         print('resume model from path: ', model_path)
         weights = torch.load(model_path)

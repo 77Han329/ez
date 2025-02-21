@@ -11,11 +11,12 @@ from torch.cuda.amp import autocast as autocast
 from core.mcts import MCTS
 from core.game import GameHistory
 from core.utils import select_action, prepare_observation_lst
+from config.atari import game_config
 
 
 @ray.remote(num_gpus=0.25)
 def _test(config, shared_storage):
-    test_model = config.get_uniform_network()
+    test_model = config.get_uniform_network(game_config.pretrain)
     best_test_score = float('-inf')
     episodes = 0
     while True:
