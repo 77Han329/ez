@@ -366,13 +366,13 @@ class PredictionNetwork(nn.Module):
 class EfficientZeroNet(BaseNet):
     def __init__(
         self,
-        observation_shape,
-        action_space_size,
-        num_blocks,
-        num_channels,
-        reduced_channels_reward,
-        reduced_channels_value,
-        reduced_channels_policy,
+        observation_shape,#12，96，96
+        action_space_size,#4
+        num_blocks,#1
+        num_channels,#64
+        reduced_channels_reward,#16
+        reduced_channels_value,#16
+        reduced_channels_policy,#16
         fc_reward_layers,
         fc_value_layers,
         fc_policy_layers,
@@ -480,16 +480,16 @@ class EfficientZeroNet(BaseNet):
         )
 
         self.representation_network = RepresentationNetwork(
-            observation_shape,
-            num_blocks,
-            num_channels,
+            observation_shape,#12,96,96
+            num_blocks,#1
+            num_channels,#64
             downsample,
             momentum=bn_mt,
         )
 
         self.dynamics_network = DynamicsNetwork(
             num_blocks,
-            num_channels + 1,
+            num_channels + 1,#65
             reduced_channels_reward,
             fc_reward_layers,
             reward_support_size,

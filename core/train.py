@@ -452,7 +452,7 @@ def train(config, summary_writer, model_path=None,pretrain=False):
     storage = SharedStorage.remote(model, target_model)
 
     # prepare the batch and mctc context storage
-    batch_storage = QueueStorage(15, 20)
+    batch_storage = QueueStorage(15, 20)#用于训练的数据，每次从replaybuffer 中区
     mcts_storage = QueueStorage(18, 25)
     replay_buffer = ReplayBuffer.remote(config=config)
 
