@@ -26,7 +26,7 @@ class AtariConfig(BaseConfig):
             dirichlet_alpha=0.3,
             value_delta_max=0.01,
             num_simulations=50,
-            batch_size=256,
+            batch_size=4,
             td_steps=5,
             num_actors=1,
             # network initialization/ & normalization
@@ -44,7 +44,7 @@ class AtariConfig(BaseConfig):
             lr_decay_steps=100000,
             auto_td_steps_ratio=0.3,
             # replay window
-            start_transitions=8,
+            start_transitions=1,
             total_transitions=100 * 1000,
             transition_num=1,
             # frame skip & stack observation
@@ -143,8 +143,8 @@ class AtariConfig(BaseConfig):
             efficientzero_net.lag.load_state_dict(pretrained_lag_state_dict, strict=False)
 
             # action adapter
-            efficientzero_net.action_adapter = ActionAdapter(efficientzero_net.lag)
-            print("Pretrained model loaded successfully!")
+            # efficientzero_net.action_adapter = ActionAdapter(efficientzero_net.lag)
+            # print("Pretrained model loaded successfully!")
             
         else:
             print("Not using pretrained model.")

@@ -122,7 +122,7 @@ if __name__ == '__main__':
                 model_path = args.model_path
             assert os.path.exists(model_path), 'model not found at {}'.format(model_path)
 
-            model = game_config.get_uniform_network(train_mode).to(device)
+            model = game_config.get_uniform_network(pretrain).to(device)
             model.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
             test_score, _, test_path = test(game_config, model, 0, args.test_episodes, device=device, render=args.render, save_video=args.save_video, final_test=True, use_pb=True)
             mean_score = test_score.mean()

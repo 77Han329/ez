@@ -5,6 +5,7 @@ import numpy as np
 import torch.nn as nn
 import collections
 from core.model import BaseNet, renormalize
+import core.action_adapter as M
 
 
 def mlp(
@@ -439,35 +440,7 @@ class LatentActionGen(nn.Module):
 		# print('perp: %.4f; LAG loss: %.4f;' % (perplexity, loss))
 		return z, loss, perplexity, encoding_indices
 
-class ActionAdapter:
-    def __init__(self, lag):
-        """
-        Action Adapter M: Maps real actions a_t to latent action embeddings e_k
-        :param lag_model: The pre-trained Latent Action Generator (LAG)
-        """
-        self.lag_model = lag # 预训练的 LAG
-        self.mapping = {}  # 存储 (a_t -> e_k) 的映射
-        self.count_table = collections.defaultdict(lambda: collections.defaultdict(int))  # 统计表 C[a, k]
 
-    def build_adapter(self, dataset):
-        """
-        Train the action adapter M using self-play dataset
-        :param dataset: list of (s_t, a_t, s_t+1) tuples
-        """
-        for (s_t, a_t, s_t1) in dataset:
-            e_k = self.lag_model(s_t, s_t1)[0]  # 使用 LAG 生成 latent action
-            self.count_table[a_t][e_k] += 1
-
-        # 选择最常见的 e_k 作为 a_t 的映射
-        for a_t in self.count_table.keys():
-            sorted_ek = sorted(self.count_table[a_t].items(), key=lambda x: -x[1])
-            self.mapping[a_t] = sorted_ek[0][0]  # 取频率最高的 e_k
-
-    def get_latent_action(self, a_t):
-        """
-        Get the corresponding latent action embedding e_k
-        """
-        return self.mapping.get(a_t, None)
 
 class EfficientZeroNet(BaseNet):
     def __init__(
@@ -595,7 +568,7 @@ class EfficientZeroNet(BaseNet):
 
         self.dynamics_network = DynamicsNetwork(
             num_blocks,
-            num_channels + 1,#65
+            num_channels + 1,#65 if pretrained change to 69
             reduced_channels_reward,
             fc_reward_layers,
             reward_support_size,
@@ -647,7 +620,7 @@ class EfficientZeroNet(BaseNet):
 		                           embedding_channel=5,
                                    num_blocks=num_blocks)
         
-        self.action_adapter = ActionAdapter(self.lag)
+        
 
     def prediction(self, encoded_state):
         policy, value = self.prediction_network(encoded_state)
@@ -678,6 +651,10 @@ class EfficientZeroNet(BaseNet):
         action_one_hot = (
             action[:, :, None, None] * action_one_hot / self.action_space_size
         )
+        pretrained = False
+        if pretrained:
+            action_embedding=M(action_one_hot)
+            x = torch.cat((encoded_state, action_embedding), dim=1)
         x = torch.cat((encoded_state, action_one_hot), dim=1)
         next_encoded_state, reward_hidden, value_prefix = self.dynamics_network(x, reward_hidden)
 
