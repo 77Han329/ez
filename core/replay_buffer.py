@@ -26,7 +26,17 @@ class ReplayBuffer(object):
         self._alpha = config.priority_prob_alpha
         self.transition_top = int(config.transition_num * 10 ** 6)
         self.clear_time = 0
+        self.count_table = {}
+    # test implementation
+    # Mayebe need these function in workers to update counttable
+    # def update_count_table(self, count_table):
+        
+    #     self.count_table = count_table
 
+    # def get_count_table(self):
+        
+    #     return self.count_table
+    
     def save_pools(self, pools, gap_step):
         # save a list of game histories
         for (game, priorities) in pools:

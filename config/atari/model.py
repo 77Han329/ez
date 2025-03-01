@@ -651,10 +651,7 @@ class EfficientZeroNet(BaseNet):
         action_one_hot = (
             action[:, :, None, None] * action_one_hot / self.action_space_size
         )
-        pretrained = False
-        if pretrained:
-            action_embedding=M(action_one_hot)
-            x = torch.cat((encoded_state, action_embedding), dim=1)
+        
         x = torch.cat((encoded_state, action_one_hot), dim=1)
         next_encoded_state, reward_hidden, value_prefix = self.dynamics_network(x, reward_hidden)
 

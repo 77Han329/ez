@@ -16,6 +16,7 @@ from core.replay_buffer import ReplayBuffer
 from core.storage import SharedStorage, QueueStorage
 from core.selfplay_worker import DataWorker
 from core.reanalyze_worker import BatchWorker_GPU, BatchWorker_CPU
+from core.action_adapter import ActionAdapter
 
 
 def consist_loss_func(f1, f2):
@@ -448,11 +449,13 @@ def train(config, summary_writer, model_path=None,pretrain=False):
 
         model.load_state_dict(weights)
         target_model.load_state_dict(weights)
-
-    storage = SharedStorage.remote(model, target_model)
+    # test implementation of a new storage with action adapter
+    # action_adapter = ActionAdapter() 
+    # storage = SharedStorage.remote(model, target_model,action_adapter)
+    storage = SharedStorage.remote(model, target_model)  
 
     # prepare the batch and mctc context storage
-    batch_storage = QueueStorage(15, 20)#用于训练的数据，每次从replaybuffer 中区
+    batch_storage = QueueStorage(15, 20)#
     mcts_storage = QueueStorage(18, 25)
     replay_buffer = ReplayBuffer.remote(config=config)
 

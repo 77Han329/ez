@@ -35,6 +35,9 @@ class DataWorker(object):
         self.device = self.config.device
         self.gap_step = self.config.num_unroll_steps + self.config.td_steps
         self.last_model_index = -1
+        
+        # test implementation
+        # self.action_adapter = ray.get(self.storage.get_action_adapter.remote())
 
     def put(self, data):
         # put a game history into the pool
@@ -127,7 +130,12 @@ class DataWorker(object):
                 if trained_steps >= self.config.training_steps + self.config.last_steps:
                     time.sleep(30)
                     break
-
+                
+                # test implementation
+                #  get newest ActionAdapter
+                # self.action_adapter = ray.get(self.storage.get_action_adapter.remote())
+                
+                
                 init_obses = [env.reset() for env in envs]
                 dones = np.array([False for _ in range(env_nums)])
                 game_histories = [GameHistory(envs[_].env.action_space, max_length=self.config.history_length,
@@ -176,7 +184,7 @@ class DataWorker(object):
                         # self-play is faster than training speed or finished
                         time.sleep(1)
                         continue
-
+                                      
                     # set temperature for distributions
                     _temperature = np.array(
                         [self.config.visit_softmax_temperature_fn(num_moves=0, trained_steps=trained_steps) for env in
@@ -259,6 +267,9 @@ class DataWorker(object):
                             eps_ori_reward_lst[i] = 0
                             visit_entropies_lst[i] = 0
 
+                    # test implementation of geting all o_t
+                    # s_t_list = [stack_obs_windows[i][-1] for i in range(env_nums)]
+                    
                     # stack obs for model inference
                     stack_obs = [game_history.step_obs() for game_history in game_histories]
                     if self.config.image_based:
@@ -286,6 +297,7 @@ class DataWorker(object):
 
                     roots_distributions = roots.get_distributions()
                     roots_values = roots.get_values()
+
                     for i in range(env_nums):
                         deterministic = False
                         if start_training:
@@ -296,9 +308,21 @@ class DataWorker(object):
                             distributions = np.ones(self.config.action_space_size)
 
                         action, visit_entropy = select_action(distributions, temperature=temperature, deterministic=deterministic)
-                        #action_embedding = self.storage.get_action_embedding.remote(action)
-                        #obs, ori_reward, done, info = env.step(action_embedding)
                         obs, ori_reward, done, info = env.step(action)
+                        
+                        
+                        # test implementation of geting at and st and st+1
+                        # but not right because st and st+1 in this implementation are observation not state
+                        # s_t = s_t_list[i]
+                        # a_t = action  # 记录 a_t
+
+                        # s_t1 = obs  # 记录 s_t+1
+                        
+                        # # update count_table
+                        # self.action_adapter.update_count_table(s_t, a_t, s_t1)
+                        
+
+                
                         
                         # clip the reward
                         if self.config.clip_reward:
@@ -344,6 +368,11 @@ class DataWorker(object):
                             game_histories[i] = GameHistory(envs[i].env.action_space, max_length=self.config.history_length,
                                                             config=self.config)
                             game_histories[i].init(stack_obs_windows[i])
+                
+                # test implementation 
+                # I think we need it 
+                # ray.get(self.replay_buffer.update_count_table.remote(count_table_updates))           
+                        
 
                 for i in range(env_nums):
                     env = envs[i]

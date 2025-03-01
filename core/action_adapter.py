@@ -1,45 +1,53 @@
-import collections
-from config.atari import game_config
+# test implementation of action adapter and couting table
 
-class ActionAdapter:
-    def __init__(self):
-        """
-        Action Adapter M: Maps real actions a_t to latent action embeddings e_k
-        """
-        model = game_config.get_uniform_network(True)
-        self.lag_model = model.lag  # 预训练 LAG
-        self.mapping = {}  # M 映射表
-        self.count_table = collections.defaultdict(lambda: collections.defaultdict(int))  # C[a, k] 计数表
 
-    def update_count_table(self, s_t, a_t, s_t1):
-        """
-        use LAG to calculate e_k and update C[a, k]
-        """
-        _, _, _, e_k = self.lag_model(s_t, s_t1)  # latent action embedding indicies
-        self.count_table[a_t][e_k.item()] += 1  # update C[a, k]
+# from config.atari import game_config
+# import torch
+# class ActionAdapter:
+#     def __init__(self):
+        
+#         model = game_config.get_uniform_network(True)
+#         self.lag_model = model.lag 
 
-    def build_adapter(self):
-        """
-        使用 C 构建 Action Adapter M
-        """
-        sorted_table = []
-        for a_t in self.count_table.keys():
-            sorted_ek = sorted(self.count_table[a_t].items(), key=lambda x: -x[1])
-            sorted_table.append((a_t, sorted_ek))
+#         # {(a, k): count}
+#         self.count_table = {}
 
-        self.mapping.clear()
-        used_ek = set()
+#         # a -> e_k
+#         self.action_adapter = {}
 
-        for a_t, sorted_ek in sorted_table:
-            for e_k, count in sorted_ek:
-                if a_t not in self.mapping and e_k not in used_ek:
-                    self.mapping[a_t] = e_k
-                    used_ek.add(e_k)
+#     def update_count_table(self, s_t, a_t, s_t1):
+#         self.lag_model.eval()
+#         with torch.no_grad():
+#             _, _, _, encoding_indices = self.lag_model(s_t, s_t1)   
 
-        return self.mapping  
+#         key = (a_t, encoding_indices)
+#         self.count_table[key] = self.count_table.get(key, 0) + 1
 
-    def get_latent_action(self, a_t):
-        """
-        获取 a_t 对应的 e_k
-        """
-        return self.mapping.get(a_t, None)
+#     def build_adapter(self):
+#         self.action_adapter.clear()
+#         table_list = [
+#             (a, latent_idx, count)
+#             for ((a, latent_idx), count) in self.count_table.items()
+#         ]
+        
+#         table_list.sort(key=lambda x: x[2], reverse=True)
+
+        
+#         for (a, latent_idx, count) in table_list:
+            
+#             if a in self.action_adapter:
+#                 continue
+            
+#             if latent_idx in self.action_adapter.values():
+#                 continue
+
+#             self.action_adapter[a] = latent_idx
+
+#     def get_latent_action(self, a_t):
+        
+#         idx = self.get_latent_index(a_t)
+#         if idx is None:
+#             return None
+        
+#         embedding_vector = self.lag_model.quantizer.get_embedding(idx)
+#         return embedding_vector

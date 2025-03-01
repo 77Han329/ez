@@ -32,7 +32,7 @@ class QueueStorage(object):
 
 @ray.remote
 class SharedStorage(object):
-    def __init__(self, model, target_model):
+    def __init__(self, model, target_model, action_adapter):
         """Shared storage for models and others
         Parameters
         ----------
@@ -56,6 +56,10 @@ class SharedStorage(object):
         self.priority_self_play_log = []
         self.distributions_log = {}
         self.start = False
+        # test implementation
+        # # ✅ 1. 新增 count_table 存储
+        # self.count_table = {}
+        # self.action_adapter = action_adapter  
 
     def set_start_signal(self):
         self.start = True
@@ -103,6 +107,17 @@ class SharedStorage(object):
                 self.test_dict_log[key] = []
             self.test_dict_log[key].append(val)
 
+    # test implementation
+    # def get_count_table(self):
+    #     return self.count_table
+
+   
+    # def update_count_table(self, new_count_table):
+    #     self.count_table = new_count_table
+        
+    # def get_action_adapter(self):
+    #     return self.action_adapter
+        
     def get_worker_logs(self):
         if len(self.reward_log) > 0:
             ori_reward = sum(self.ori_reward_log) / len(self.ori_reward_log)
